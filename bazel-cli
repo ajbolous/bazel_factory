@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+import argparse
+
+cppBinString = 'cc_binary(\n\tname = "{0}",\n\tsrcs = glob(["src/*.cc"])\n)'
+cppLibString = "cc_library(\n\tname = '{0}',\n\tsrcs = glob(['src/*.cc']),\n\thdrs = glob(['include/*.h'])\n)"
+javaString = "" 
+pythonString = ""
+
+buildTypes = {
+    'cpp_bin' : cppBinString,
+    'cpp_lib' : cppLibString,
+    'java' : javaString,
+    'python' : pythonString
+}
+
+def createBuildDir(buildName, buildType):
+    if not buildType or buildType not in buildTypes:
+        print ('ERROR: Unkown or missing build type, please select one of the following: [cpp_bin, cpp_lib, java, python]')
+        return
+    if not os.path.isfile(os.getcwd() + '/WORKSPACE'):
+        print('Must be invoked from a Bazel workspace')
+        return
+
+    dirpath = os.getcwd() + "/{0}".format(buildName)
+    os.mkdir(dirpath)
+    os.chdir(dirpath)
+    os.mkdir(dirpath + '/src')
+    os.mkdir(dirpath + '/include')
+
+    with open('BUILD', 'w+') as f:
+        f.write(buildTypes[buildType].format(buildName))
+
+    if buildType == 'cpp_bin':
+        with open('src/{}.cc'.format(buildName), 'w+') as cfile:
+            cfile.write('#include <iostream>\n int main() {\n\tstd::cout << "Hello World!" << std::endl;\n}')
+
+def createWorkspace(workspaceName):
+    print("Creating new workspace {0}".format(workspaceName))
+    dirpath = os.getcwd() + "/{0}".format(workspaceName) 
+    os.mkdir(dirpath)
+    os.chdir(dirpath)
+    with open('WORKSPACE', 'w+') as f:
+        f.write("workspace(\n\tname = '{}',\n)".format(workspaceName))
+
+def parseCommand(args):
+    if args.action == 'new' and args.resource == 'workspace':
+        createWorkspace(args.name)
+    
+    if args.action == 'new' and args.resource == 'build':
+        createBuildDir(args.name, args.type)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Command line tool for creating Bazel workspace and BUILD files')
+    parser.add_argument('action', action='store')
+    parser.add_argument('resource', action='store')
+    parser.add_argument('name', action='store')
+    parser.add_argument('type', action='store', nargs='?')
+    args = parser.parse_args()
+    parseCommand(args)
